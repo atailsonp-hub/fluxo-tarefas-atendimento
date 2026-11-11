@@ -1,9 +1,12 @@
 // Cliente da API: um lugar só para falar com o servidor. Erros viram Error com a mensagem do servidor.
 /** Id anônimo deste navegador: é o "dono" dos tickets (não há login). */
+// Fica num cookie (vale para todas as portas de 127.0.0.1) e não no localStorage (que é por porta):
+// no desenvolvimento a porta muda a cada reinício, e o dono não pode mudar junto.
 function dono() {
   try {
-    let id = localStorage.getItem("fluxo-dono");
-    if (!id) { id = crypto.randomUUID(); localStorage.setItem("fluxo-dono", id); }
+    const guardado = /(?:^|; )fluxo-dono=([\w-]+)/.exec(document.cookie)?.[1];
+    const id = guardado ?? localStorage.getItem("fluxo-dono") ?? crypto.randomUUID();
+    if (!guardado) document.cookie = `fluxo-dono=${id}; path=/; max-age=31536000; SameSite=Lax`;
     return id;
   } catch {
     return "";
