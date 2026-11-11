@@ -21,7 +21,7 @@
 ## Pendências
 
 - Confirmar o Copilot cloud agent no repositório (Settings do repositório, Copilot).
-- Criar o secret `COPILOT_AGENT_TOKEN` e `.github/agents/*.agent.md` (próximas etapas).
+- Criar o secret `COPILOT_AGENT_TOKEN` (Etapa 03, abaixo). Os agentes em `.github/agents/` já existem.
 
 ## Etapa 03: app, issue e coordenador
 
