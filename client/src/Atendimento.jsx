@@ -282,6 +282,16 @@ export function Atendimento({ aoNavegar }) {
     setEnviando(false);
   };
 
+  // Atualização manual: recarrega a lista e a conversa aberta (a automática roda a cada 4 s).
+  const atualizarAgora = () => executar(async () => {
+    versaoRef.current++;
+    await atualizarLista();
+    if (idRef.current) {
+      const novo = await api.tickets.detalhe(idRef.current);
+      setDetalhe((atual) => (mesmaConversa(atual, novo) ? atual : novo));
+    }
+  });
+
   const mudarStatus = (status) => executar(async () => {
     versaoRef.current++;
     const r = await api.tickets.editar(ticketId, { status });
@@ -305,7 +315,10 @@ export function Atendimento({ aoNavegar }) {
   return (
     <div className="app">
       <BarraLateral tela="atendimento" aoNavegar={aoNavegar}>
-        <Botao variante="primario" icone="mais" className="botao-bloco" onClick={() => escolher(null)}>Novo ticket</Botao>
+        <div className="lateral-novo">
+          <Botao variante="primario" icone="mais" className="botao-bloco" onClick={() => escolher(null)}>Novo ticket</Botao>
+          <Botao icone="atualizar" aria-label="Atualizar tickets" title="Atualizar tickets" onClick={() => void atualizarAgora()} />
+        </div>
 
         {tickets === null ? (
           <p className="lateral-vazio">Carregando tickets…</p>

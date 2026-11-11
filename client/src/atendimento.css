@@ -8,6 +8,9 @@
 
 /* ---------- lateral: lista de tickets ---------- */
 
+.lateral-novo { display: flex; gap: var(--e2); }
+.lateral-novo .botao-bloco { flex: 1; width: auto; }
+
 .tickets-grupos { display: flex; flex-direction: column; gap: var(--e4); min-height: 0; overflow-y: auto; }
 .tickets-grupo-titulo { padding: 0 var(--e2) var(--e1); }
 .tickets-lista { gap: 2px; }
