@@ -19,9 +19,11 @@ permissions:
   issues: write
   pull-requests: read
 
-# Uma execução por issue/PR de cada vez; as repetidas (opened + labeled) esperam e encontram o estado já gravado.
+# Uma execução por vez em cada issue (ou PR): as repetidas (opened + labeled) esperam e encontram o
+# estado já gravado, então não há dupla atribuição. Issues diferentes não se bloqueiam nem se descartam.
+# O PR só lê e publica (nunca atribui), então não precisa esperar a issue.
 concurrency:
-  group: native-agents-${{ github.event.issue.number || github.event.pull_request.number || inputs.issue_number }}
+  group: native-agents-${{ github.event.issue.number || inputs.issue_number || format('pr-{0}', github.event.pull_request.number) }}
   cancel-in-progress: false
 
 jobs:

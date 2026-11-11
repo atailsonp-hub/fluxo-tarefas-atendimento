@@ -50,8 +50,12 @@ export async function garantirIssue(db, ticket, descricao) {
   if (c.seco) return gravar("dry-run");
   if (!c.repo || !c.token) return gravar("erro-issue");
   try {
-    const existentes = await gh(c, "GET", "/issues?labels=origin:app&state=all&per_page=100");
-    let issue = existentes.find((i) => i.body?.includes(marcaTicket(ticket.id)));
+    let issue;
+    for (let pagina = 1; !issue && pagina <= 10; pagina++) {
+      const lote = await gh(c, "GET", `/issues?labels=origin:app&state=all&per_page=100&page=${pagina}`);
+      issue = lote.find((i) => i.body?.startsWith(marcaTicket(ticket.id)));
+      if (lote.length < 100) break;
+    }
     issue ??= await gh(c, "POST", "/issues", { title: ticket.title, body: corpoDaIssue(ticket, descricao), labels: ["origin:app"] });
     gravar("issue-criada", issue.number);
   } catch (e) {
@@ -70,7 +74,7 @@ export async function trazerRespostas(db, ticket) {
   ultimaLeitura.set(ticket.id, Date.now());
   try {
     const comentarios = await gh(c, "GET", `/issues/${ticket.issue_number}/comments?per_page=100`);
-    for (const com of comentarios.filter((x) => x.body?.startsWith(MARCA_N1))) {
+    for (const com of comentarios.filter((x) => x.user?.login === "github-actions[bot]" && x.body?.startsWith(MARCA_N1))) {
       const texto = com.body.slice(MARCA_N1.length).replace(/<!--.*?-->/gs, "").trim();
       if (!texto) continue;
       const criado = db.prepare(
