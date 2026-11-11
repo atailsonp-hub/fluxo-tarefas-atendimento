@@ -84,7 +84,7 @@ export async function triar({ requestId, issue, conversa = [] }, env = process.e
   const contrato = `Modo triagem anterior à atribuição. Não implemente, não grave arquivos, não use report_progress e não publique nada.
     Responda SOMENTE JSON, sem cercas:
     {"requestId":"${requestId}","outcome":"answer|clarification|code|consult_po","publicText":"texto do N1 ou justificativa interna","evidence":["arquivo e evidência"]}.
-    Consulte docs/knowledge/ e o código atual antes de decidir.
+    Consulte docs/Knowledge/ e o código atual antes de decidir.
     answer: orientação comprovada nas fontes e no código atual, SEM necessidade de desenvolver (dúvidas de uso, comportamento existente).
     code: SOMENTE quando a solução exige alterar código, testes, configuração ou outro arquivo do produto.
     Incerteza, pergunta comercial ou consulta ao PO não significam desenvolvimento.

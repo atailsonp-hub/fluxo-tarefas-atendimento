@@ -23,7 +23,7 @@ Exatamente um bloco na descrição do PR, com **todos** os marcos anteriores:
 - `requestId` e `issueNumber` são os do pedido (do `custom_instructions`); com valores diferentes o bloco é ignorado.
 - `id`: estável (letras, números, `_` ou `-`, até 40 caracteres). `agent`: quem fez o trabalho. Os dois textos são obrigatórios; `publicText` pode ser vazio.
 - Não edite um marco já publicado: correções entram como **outro** id.
-- Até 100 marcos; `internalText` até 2.000 caracteres e `publicText` até 1.000 (o resto é cortado).
+- Até 100 marcos; `internalText` até 4.000 caracteres e `publicText` até 1.000 (o resto é cortado).
 
 ## Quem escreve o quê
 

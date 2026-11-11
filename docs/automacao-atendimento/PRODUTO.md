@@ -28,4 +28,4 @@ Fluxo é um quadro de tarefas no estilo Trello, com uma área de atendimento. Ro
 
 - Quadros, listas e cartões: `client/src/TelaQuadro.jsx`, `Lista.jsx`, `Cartao.jsx`, `ordem.js` e `server/src/quadros.js`.
 - Atendimento: `client/src/Atendimento.jsx` e `server/src/tickets.js`.
-- Base de conhecimento dos agentes (o que cada issue e PR ensinaram): `docs/knowledge/`, formato em `docs/knowledge/README.md`.
+- Base de conhecimento dos agentes (o que cada issue e PR ensinaram): `docs/Knowledge/`, formato em `docs/Knowledge/README.md`.
