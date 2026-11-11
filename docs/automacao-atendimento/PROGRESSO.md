@@ -2,17 +2,23 @@
 
 ## Etapa 00: preparar o projeto e o acesso
 
-- **Cópia local:** `c:\Sistema_\Treinamento_1111\App-Fluxo-Tarefas-V1` (reutilizada).
-- **URL de origem:** https://github.com/bittencourtthulio/App-Fluxo-Tarefas-V1 (é o `origin` atual, o original do professor; nada foi enviado para lá).
-- **Repositório próprio:** ainda não criado. Falta o login do GitHub (`gh auth login`).
+- **Origem do código:** https://github.com/bittencourtthulio/App-Fluxo-Tarefas-V1 (original do professor, intocado).
+- **Minha cópia (repositório novo, público):** https://github.com/atailsonp-hub/fluxo-tarefas-atendimento (`origin`, histórico novo).
+- **Pasta local:** `c:\Sistema_\Treinamento_1111\App-Fluxo-Tarefas-V1`.
 - **Node:** v24.22.2 (o projeto exige >= 22.13).
 - **Comandos (package.json):** `npm run dev`, `npm run build`, `npm test`, `npm start`.
-- **Abrir o app:** `npm run dev`. Ele mostra as portas (API e interface) ao subir; a tela de atendimento fica em `/atendimento`.
-- **Build:** `npm run build` concluiu com sucesso (vite, 0 erros).
-- **Dados locais:** `server/dados/` (SQLite) preservado e ignorado pelo git.
+- **Abrir o app:** `npm run dev` (mostra as portas ao subir; atendimento em `/atendimento`).
+- **Build:** `npm run build` concluiu sem erros.
+- **Dados locais:** `server/dados/` (SQLite) e `.env` não vão para o git.
+
+## Acesso ao GitHub
+
+- **GitHub CLI:** logado como `atailsonp-hub` (escopos `repo`, `read:org`, `gist`).
+- **Actions:** habilitadas no repositório novo (`allowed_actions: all`).
+- **Copilot:** plano `individual` e chat ativo. O Copilot cloud agent **não foi confirmado** (a API não informa), então falta testar na prática.
+- **Credenciais:** a do backend (`.env` local) é separada do secret `COPILOT_AGENT_TOKEN` das Actions. Nenhum valor foi lido ou registrado.
 
 ## Pendências
 
-- Acesso ao GitHub Copilot cloud agent (plano pago + Actions): **não verificado**, o GitHub CLI não está logado.
-- Secret `COPILOT_AGENT_TOKEN` e `.github/agents/*.agent.md`: não configurados (fora desta etapa).
-- A credencial local do backend (`.env`, ignorado pelo git) fica separada do secret `COPILOT_AGENT_TOKEN`; nenhum valor foi lido ou registrado.
+- Confirmar o Copilot cloud agent no repositório (Settings do repositório, Copilot).
+- Criar o secret `COPILOT_AGENT_TOKEN` e `.github/agents/*.agent.md` (próximas etapas).
