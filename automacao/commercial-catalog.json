@@ -1,0 +1,14 @@
+{
+  "produto": "Fluxo",
+  "descricao": "Quadro de tarefas no estilo Trello (quadros, listas e cartões) com área de atendimento por tickets.",
+  "recursos": [
+    "Quadros, listas e cartões com título e descrição",
+    "Mover cartões arrastando ou pelo menu",
+    "Atendimento por tickets em formato de conversa"
+  ],
+  "precos": null,
+  "planos": null,
+  "prazos": null,
+  "integracoes": null,
+  "observacao": "Preço, planos, prazos e integrações ainda não foram definidos. O agente não deve inventar: responda que não há informação e faça uma pergunta curta ou encaminhe a uma pessoa."
+}
