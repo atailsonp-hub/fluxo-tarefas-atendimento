@@ -14,6 +14,7 @@ Vale para os agentes que respondem tickets e abrem mudanças no Fluxo.
 
    Pequena = poucos arquivos, sem dependência nova, e `npm run build` e `npm test` passando.
 4. **Mudar o banco, só pelo agente `banco`**, quando o pedido do quadro exigir coluna ou tabela nova: uma migração nova no fim da lista em `server/src/db.js`, só nas tabelas `board`, `list` e `card`, sem apagar nem alterar dados existentes. Os outros agentes não editam `db.js`.
+5. **Registrar conhecimento, só pelo agente `conhecimento`**: criar entradas novas em `docs/knowledge/*.md` (uma por issue resolvida e uma por PR de código), sem segredos nem dados pessoais e sem reescrever entradas antigas. Todos os agentes **consultam** `docs/knowledge/` antes de agir.
 
 ## O que o agente não pode alterar
 
