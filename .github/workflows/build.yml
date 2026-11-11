@@ -1,0 +1,23 @@
+name: build
+
+# Build e testes do projeto. O controlador (native-agents) espera o check "build" verde do commit do PR.
+# Roda o código do PR SEM segredos e com token somente leitura (evento pull_request, não pull_request_target).
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
