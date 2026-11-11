@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api } from "./api.js";
+import { acompanharTicket } from "./acompanhar-ticket.js";
 import { agruparPorData, aguardandoAgente, mesmaConversa } from "./atendimento.js";
 import { BarraLateral } from "./BarraLateral.jsx";
 import { Botao } from "./componentes/Botao.jsx";
@@ -8,7 +9,6 @@ import { Confirmar } from "./componentes/Confirmar.jsx";
 import { Icone } from "./componentes/Icone.jsx";
 import { Menu } from "./componentes/Menu.jsx";
 
-const INTERVALO_MS = 4000;
 
 const hora = (iso) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
@@ -75,7 +75,7 @@ function Mensagem({ mensagem }) {
   );
 }
 
-function Conversa({ detalhe, aoMudarStatus, aoExcluir, aoAtualizar, sincronizando, atualizadoEm, aoEnviar, enviando, rascunho, aoMudarRascunho }) {
+function Conversa({ detalhe, aoMudarStatus, aoExcluir, aoAtualizar, sincronizando, atualizadoEm, falhaSync, aoEnviar, enviando, rascunho, aoMudarRascunho }) {
   const fim = useRef(null);
   const { ticket, messages } = detalhe;
   const aguardando = aguardandoAgente(detalhe);
@@ -112,8 +112,8 @@ function Conversa({ detalhe, aoMudarStatus, aoExcluir, aoAtualizar, sincronizand
         <div className="chat-fio" role="log" aria-live="polite" aria-label={`Conversa do atendimento ${ticket.title}`}>
           {messages.map((m) => <Mensagem key={m.id} mensagem={m} />)}
           {/* Só estado da sincronização, nunca uma "mensagem" do atendimento: respostas aparecem só quando um agente as publica. */}
-          <p className="chat-status" role="status">
-            {aguardando ? "Aguardando resposta do atendimento" : "Conversa sincronizada"}
+          <p className="chat-status" role="status" data-falha={falhaSync ? "" : undefined}>
+            {falhaSync ?? (aguardando ? "Aguardando resposta do atendimento" : "Conversa sincronizada")}
             {atualizadoEm ? ` · atualizado às ${atualizadoEm.toLocaleTimeString("pt-BR")}` : ""}
           </p>
           <div ref={fim} />
@@ -176,7 +176,9 @@ export function Atendimento({ aoNavegar }) {
   const [erro, setErro] = useState(null);
   const [excluindo, setExcluindo] = useState(false);
   const [atualizadoEm, setAtualizadoEm] = useState(null); // última vez que a conversa aberta foi relida do servidor
-  const [sincronizando, setSincronizando] = useState(false);
+  const [sincronizando, setSincronizando] = useState(false); // só o botão Atualizar; a consulta automática é silenciosa
+  const [falhaSync, setFalhaSync] = useState(null);
+  const acompanhamentoRef = useRef(null);
 
   // Refs deixam a consulta periódica enxergar o estado atual sem recriar o intervalo.
   const idRef = useRef(null);
@@ -197,32 +199,35 @@ export function Atendimento({ aoNavegar }) {
     aplicarLista((await api.tickets.listar())?.tickets ?? []);
   }, [aplicarLista]);
 
-  // Consulta periódica: é assim que respostas de agentes aparecem sem o usuário recarregar.
+  // Acompanhamento: é assim que respostas de agentes aparecem sem o usuário recarregar. Consulta a cada 5 s só com a aba
+  // visível, de novo ao voltar para a aba, uma consulta por vez; o botão Atualizar força a releitura da issue.
   useEffect(() => {
-    let vivo = true;
-    const ciclo = async (primeira) => {
-      if (document.hidden) return;
-      const versao = versaoRef.current;
-      try {
+    let primeira = true;
+    const acompanhamento = acompanharTicket({
+      ler: async (forcar) => {
+        const versao = versaoRef.current;
         const lista = (await api.tickets.listar())?.tickets ?? [];
-        if (!vivo) return;
-        if (versao === versaoRef.current) aplicarLista(lista);
         const id = idRef.current;
-        if (id && versao === versaoRef.current) {
-          const novo = await api.tickets.detalhe(id);
-          if (vivo && idRef.current === id && versao === versaoRef.current) {
-            setDetalhe((atual) => (mesmaConversa(atual, novo) ? atual : novo));
-            setAtualizadoEm(new Date());
-          }
+        const conversa = id ? await api.tickets.detalhe(id, forcar) : null;
+        return { versao, lista, id, conversa };
+      },
+      aoLer: ({ versao, lista, id, conversa }) => {
+        if (versao !== versaoRef.current) return; // algo mudou aqui durante a consulta: descarta a resposta antiga
+        aplicarLista(lista);
+        if (id && conversa && idRef.current === id) {
+          setDetalhe((atual) => (mesmaConversa(atual, conversa) ? atual : conversa));
+          setAtualizadoEm(new Date());
         }
-        if (primeira) setErro(null);
-      } catch (e) {
-        if (primeira && vivo) { setErro(e.message); setTickets([]); }
-      }
-    };
-    void ciclo(true);
-    const t = setInterval(() => void ciclo(false), INTERVALO_MS);
-    return () => { vivo = false; clearInterval(t); };
+        if (primeira) { setErro(null); primeira = false; }
+        setFalhaSync(null);
+      },
+      aoErro: (e) => {
+        if (primeira) { setErro(e.message); setTickets([]); primeira = false; }
+        else setFalhaSync("Sem conexão com o servidor: o histórico continua aqui e a consulta tenta de novo sozinha");
+      },
+    });
+    acompanhamentoRef.current = acompanhamento;
+    return () => acompanhamento.parar();
   }, [aplicarLista]);
 
   // Abrir um ticket da lateral: busca a conversa inteira.
@@ -283,17 +288,9 @@ export function Atendimento({ aoNavegar }) {
 
   // Botão Atualizar: pede ao servidor para reler a issue agora (sem esperar o intervalo) e traz o que o N1 já publicou.
   const atualizarAgora = async () => {
-    const id = idRef.current;
-    if (!id || sincronizando) return;
+    if (!idRef.current || sincronizando) return;
     setSincronizando(true);
-    await executar(async () => {
-      const novo = await api.tickets.detalhe(id, true);
-      if (idRef.current === id) {
-        setDetalhe((atual) => (mesmaConversa(atual, novo) ? atual : novo));
-        setAtualizadoEm(new Date());
-      }
-      await atualizarLista();
-    });
+    await acompanhamentoRef.current?.atualizar();
     setSincronizando(false);
   };
 
@@ -377,6 +374,7 @@ export function Atendimento({ aoNavegar }) {
             aoAtualizar={atualizarAgora}
             sincronizando={sincronizando}
             atualizadoEm={atualizadoEm}
+            falhaSync={falhaSync}
             aoEnviar={enviar}
             enviando={enviando}
             rascunho={rascunho}

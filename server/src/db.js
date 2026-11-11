@@ -81,6 +81,12 @@ const MIGRACOES = [
    ALTER TABLE ticket ADD COLUMN fase TEXT NOT NULL DEFAULT 'sem-issue';
    ALTER TABLE ticket_message ADD COLUMN fonte TEXT;
    CREATE UNIQUE INDEX ticket_message_fonte ON ticket_message (fonte) WHERE fonte IS NOT NULL`,
+  // `request_id` nasce com o ticket e acompanha a issue até a entrega (o controlador o reaproveita em qualquer nova tentativa).
+  // `issue_pendente` substitui `erro-issue`: a criação da issue falhou e será tentada de novo sem duplicar.
+  `ALTER TABLE ticket ADD COLUMN request_id TEXT;
+   UPDATE ticket SET request_id = lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(6))) WHERE request_id IS NULL;
+   CREATE UNIQUE INDEX ticket_request_id ON ticket (request_id);
+   UPDATE ticket SET fase = 'issue_pendente' WHERE fase = 'erro-issue'`,
 ];
 
 /** `caminho` = arquivo do banco; `:memory:` nos testes. */

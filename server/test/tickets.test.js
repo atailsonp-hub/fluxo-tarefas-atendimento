@@ -3,10 +3,18 @@ import { after, before, test } from "node:test";
 import { criarApp } from "../src/app.js";
 
 let base, servidor;
-const chamar = async (metodo, caminho, corpo) => {
-  const r = await fetch(base + caminho, { method: metodo, headers: { "content-type": "application/json" }, body: corpo === undefined ? undefined : JSON.stringify(corpo) });
-  return { status: r.status, dados: r.status === 204 ? null : await r.json() };
+// Faz o papel do navegador: guarda o cookie HttpOnly que o servidor define e o devolve nas chamadas seguintes.
+const novoNavegador = (cookieInicial = "") => {
+  let cookie = cookieInicial;
+  const chamar = async (metodo, caminho, corpo, cabecalhos = {}) => {
+    const r = await fetch(base + caminho, { method: metodo, headers: { "content-type": "application/json", ...(cookie ? { cookie } : {}), ...cabecalhos }, body: corpo === undefined ? undefined : JSON.stringify(corpo) });
+    const definido = r.headers.get("set-cookie");
+    if (definido) cookie = definido.split(";")[0];
+    return { status: r.status, dados: r.status === 204 ? null : await r.json(), setCookie: definido };
+  };
+  return { chamar, cookie: () => cookie };
 };
+const { chamar } = novoNavegador();
 
 before(async () => {
   ({ servidor } = criarApp());
@@ -71,14 +79,26 @@ test("fechar, renomear, reabrir ao responder e excluir em cascata", async () => 
   assert.equal((await chamar("GET", `/api/tickets/${ticket.id}`)).status, 404);
 });
 
-test("ticket pertence ao dono (x-dono) e já nasce ligado à issue no modo dry-run", async () => {
-  const como = (dono) => ({ "content-type": "application/json", "x-dono": dono });
-  const r = await fetch(`${base}/api/tickets`, { method: "POST", headers: como("dono-a"), body: JSON.stringify({ title: "Cartão some", message: "Fictício: o cartão some ao mover." }) });
-  const { ticket } = await r.json();
+test("dono por cookie HttpOnly definido pelo servidor: separa usuários e ignora o cabeçalho x-dono", async () => {
+  const ana = novoNavegador(), bia = novoNavegador();
+  const criado = await ana.chamar("POST", "/api/tickets", { title: "Cartão some", message: "Fictício: o cartão some ao mover." });
+  assert.match(criado.setCookie, /^fluxo_dono=[\w-]{8,80}; HttpOnly; SameSite=Lax; Path=\//, "cookie definido pelo servidor, HttpOnly");
+  const { ticket } = criado.dados;
   assert.equal(ticket.phase, "dry-run"); // AGENT_DRY_RUN=true por padrão: nada vai ao GitHub
-  const ver = (dono, caminho = `/api/tickets/${ticket.id}`) => fetch(base + caminho, { headers: como(dono) });
-  assert.equal((await ver("dono-a")).status, 200);
-  assert.equal((await ver("dono-b")).status, 404);
-  assert.equal((await (await ver("dono-a", "/api/tickets")).json()).tickets.some((t) => t.id === ticket.id), true);
-  assert.equal((await (await ver("dono-b", "/api/tickets")).json()).tickets.some((t) => t.id === ticket.id), false);
+  assert.equal((await ana.chamar("GET", `/api/tickets/${ticket.id}`)).status, 200);
+  assert.equal((await bia.chamar("GET", `/api/tickets/${ticket.id}`)).status, 404);
+  assert.equal((await ana.chamar("GET", "/api/tickets")).dados.tickets.some((t) => t.id === ticket.id), true);
+  assert.equal((await bia.chamar("GET", "/api/tickets")).dados.tickets.some((t) => t.id === ticket.id), false);
+  // quem só manda o cabeçalho antigo (ou forja um id) não enxerga nada
+  const intruso = novoNavegador();
+  assert.equal((await intruso.chamar("GET", `/api/tickets/${ticket.id}`, undefined, { "x-dono": "qualquer-id-de-outro" })).status, 404);
+});
+
+test("quem já tinha o cookie antigo (fluxo-dono) mantém o mesmo dono e passa a ter o cookie HttpOnly", async () => {
+  const antigo = "id-antigo-de-um-navegador-1234";
+  const navegador = novoNavegador(`fluxo-dono=${antigo}`);
+  const criado = await navegador.chamar("POST", "/api/tickets", { message: "Pedido do navegador antigo" });
+  assert.ok(criado.setCookie.startsWith(`fluxo_dono=${antigo};`), "adota o id antigo em vez de gerar outro");
+  const outro = novoNavegador(`fluxo_dono=${antigo}`); // já com o cookie novo
+  assert.equal((await outro.chamar("GET", `/api/tickets/${criado.dados.ticket.id}`)).status, 200);
 });

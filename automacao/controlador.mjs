@@ -51,6 +51,11 @@ const limpar = (t, max) => String(t ?? "").replace(/<!--|-->/g, "").slice(0, max
 // "Fixes #3" no corpo do PR fecharia a issue no merge, antes da resposta do N1: vira "Refs #3".
 const FECHAMENTO = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\b[:\s]+((?:[\w.-]+\/[\w.-]+)?#\d+)/gi;
 
+/** requestId gravado pelo backend logo após a marca do ticket no começo do corpo (o texto do cliente vem depois, em cerca). */
+export function requestIdDaIssue(issue) {
+  return /^<!-- ticket:[\w-]+ -->\nrequestId: ([\w-]{8,60})(?:\n|$)/.exec(String(issue.body ?? "").replace(/\r\n/g, "\n"))?.[1] ?? null;
+}
+
 const resultadoDe = (requestId) => `automacao/resultados/${requestId}.json`;
 const jaAtribuida = (issue) => (issue.assignees ?? []).some((a) => /copilot/i.test(a.login));
 
@@ -197,7 +202,8 @@ export async function main(env, deps = {}) {
   const falasDoCliente = comentarios.filter(doCliente);
   const novas = falasDoCliente.filter((c) => c.id > (estado.clienteVisto ?? 0));
   if (!pr && (estado.fase === "novo" || (estado.fase === "aguardando-cliente" && novas.length))) {
-    estado.requestId ??= `req-${numero}-${Date.now().toString(36)}`; // reaproveitado em qualquer nova tentativa
+    // O requestId nasce com o ticket (gravado no corpo da issue pelo backend); issues criadas fora do app ganham um aqui.
+    estado.requestId ??= requestIdDaIssue(issue) ?? `req-${numero}-${Date.now().toString(36)}`; // reaproveitado em qualquer nova tentativa
     const resultPath = resultadoDe(estado.requestId);
     const triagemLigada = Boolean(env.COPILOT_CLI_TOKEN) && (env.AGENT_TRIAGE ?? "true") !== "false";
     if (seco) {
