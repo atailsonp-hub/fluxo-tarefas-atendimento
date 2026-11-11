@@ -12,12 +12,13 @@ Vale para os agentes que respondem tickets e abrem mudanças no Fluxo.
    - `client/src/estilos.css` (só o visual do quadro)
    - `server/src/quadros.js` e `server/test/quadros.test.js`
 
-   Pequena = poucos arquivos, sem migração de banco, sem dependência nova, e `npm run build` e `npm test` passando.
+   Pequena = poucos arquivos, sem dependência nova, e `npm run build` e `npm test` passando.
+4. **Mudar o banco, só pelo agente `banco`**, quando o pedido do quadro exigir coluna ou tabela nova: uma migração nova no fim da lista em `server/src/db.js`, só nas tabelas `board`, `list` e `card`, sem apagar nem alterar dados existentes. Os outros agentes não editam `db.js`.
 
 ## O que o agente não pode alterar
 
 - Login e credenciais: `server/src/auth.js`, `.env`, qualquer secret.
-- Banco: `server/src/db.js`, migrações e `server/dados/`.
+- Banco, fora do item 4: migrações existentes, tabelas `usuario`, `sessao`, `ticket` e `ticket_message`, e `server/dados/` (o SQLite real).
 - Atendimento: `client/src/Atendimento.jsx`, `client/src/atendimento.*`, `server/src/tickets.js` e os testes deles.
 - Infraestrutura: `.github/`, workflows, `scripts/`, `package.json`, `vite.config.js`, permissões do repositório.
 

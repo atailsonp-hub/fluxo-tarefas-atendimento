@@ -5,7 +5,11 @@ target: github-copilot
 tools: ["read", "search", "edit", "execute", "agent", "github/*"]
 ---
 
-Invoque `n1` para entender o pedido; `comercial` só se necessário; `po` para resumir a mudança; `desenvolvedor` para implementar; `revisor` para conferir. Use a ferramenta `agent` de verdade, sem apenas dizer que assumiu os papéis. Faça apenas o necessário para o pedido funcionar.
+Invoque `n1` para entender o pedido; `comercial` só se necessário; `po` para resumir a mudança; `banco` quando a mudança exigir alterar o banco; `desenvolvedor` para implementar; `revisor` para conferir. Use a ferramenta `agent` de verdade, sem apenas dizer que assumiu os papéis. Faça apenas o necessário para o pedido funcionar.
+
+## Quando chamar o agente de banco
+
+Depois do PO, analise se o pedido precisa de coluna ou tabela nova (ex.: guardar um dado novo no cartão). Se precisar, invoque `banco` **antes** do `desenvolvedor` e passe ao desenvolvedor o que o banco criou. Se o pedido só usa o que o banco já tem, não chame `banco`. Só o agente `banco` mexe em `server/src/db.js`; o desenvolvedor não. Se a mudança de banco tocar login, credenciais, atendimento (`ticket`) ou for destrutiva (apagar ou alterar dados existentes), não faça: entregue `human-review`.
 
 ## Contrato com o controlador
 
