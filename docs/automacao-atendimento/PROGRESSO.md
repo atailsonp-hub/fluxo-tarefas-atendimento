@@ -37,3 +37,11 @@
 - Criar o secret `COPILOT_AGENT_TOKEN` (Actions) e o token do backend no `.env`; criar o label `origin:app`.
 - Ensaio real: desligar `AGENT_DRY_RUN` (variável do repositório e `.env`).
 - Mensagem do cliente depois do primeiro pedido ainda não vai para a issue.
+
+## Ensaio real (2026-11-11)
+
+- Secret `COPILOT_AGENT_TOKEN` e variáveis `AGENT_RUNTIME=github-native`, `AGENT_DRY_RUN=false` configurados no repositório; label `origin:app` criado; `.env` local com o token do backend (ignorado pelo git).
+- Ticket fictício aberto no app -> issue #1 criada (`origin:app`) e o workflow `native-agents` disparou.
+- **Bloqueio:** a atribuição ao Copilot devolveu 403. A conta está no plano `free_limited_copilot` (Copilot Free): o cloud agent não está disponível e `copilot-swe-agent` não aparece entre os assignees possíveis do repositório. Falta um plano com cloud agent (Copilot Pro ou superior) para a etapa seguir.
+- Quando houver acesso: rode o workflow `native-agents` por `workflow_dispatch` com `issue_number=1` (o `requestId` já está reservado no estado da issue).
+- Recomendado: revogar e recriar os dois tokens usados no ensaio (apareceram no chat).
