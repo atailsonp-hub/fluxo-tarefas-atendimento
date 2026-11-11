@@ -70,3 +70,15 @@ test("fechar, renomear, reabrir ao responder e excluir em cascata", async () => 
   assert.deepEqual((await chamar("DELETE", `/api/tickets/${ticket.id}`)).dados, { ok: true });
   assert.equal((await chamar("GET", `/api/tickets/${ticket.id}`)).status, 404);
 });
+
+test("ticket pertence ao dono (x-dono) e já nasce ligado à issue no modo dry-run", async () => {
+  const como = (dono) => ({ "content-type": "application/json", "x-dono": dono });
+  const r = await fetch(`${base}/api/tickets`, { method: "POST", headers: como("dono-a"), body: JSON.stringify({ title: "Cartão some", message: "Fictício: o cartão some ao mover." }) });
+  const { ticket } = await r.json();
+  assert.equal(ticket.phase, "dry-run"); // AGENT_DRY_RUN=true por padrão: nada vai ao GitHub
+  const ver = (dono, caminho = `/api/tickets/${ticket.id}`) => fetch(base + caminho, { headers: como(dono) });
+  assert.equal((await ver("dono-a")).status, 200);
+  assert.equal((await ver("dono-b")).status, 404);
+  assert.equal((await (await ver("dono-a", "/api/tickets")).json()).tickets.some((t) => t.id === ticket.id), true);
+  assert.equal((await (await ver("dono-b", "/api/tickets")).json()).tickets.some((t) => t.id === ticket.id), false);
+});

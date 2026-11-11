@@ -74,6 +74,13 @@ const MIGRACOES = [
      criado_em TEXT NOT NULL
    );
    CREATE INDEX ticket_message_ticket ON ticket_message (ticket_id, criado_em)`,
+  // Ticket ligado à issue do GitHub: dono (id anônimo do navegador), número da issue e fase;
+  // `fonte` = id do comentário da issue que originou a mensagem (evita importar duas vezes).
+  `ALTER TABLE ticket ADD COLUMN owner TEXT NOT NULL DEFAULT '';
+   ALTER TABLE ticket ADD COLUMN issue_number INTEGER;
+   ALTER TABLE ticket ADD COLUMN fase TEXT NOT NULL DEFAULT 'sem-issue';
+   ALTER TABLE ticket_message ADD COLUMN fonte TEXT;
+   CREATE UNIQUE INDEX ticket_message_fonte ON ticket_message (fonte) WHERE fonte IS NOT NULL`,
 ];
 
 /** `caminho` = arquivo do banco; `:memory:` nos testes. */

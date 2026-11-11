@@ -1,10 +1,21 @@
 // Cliente da API: um lugar só para falar com o servidor. Erros viram Error com a mensagem do servidor.
+/** Id anônimo deste navegador: é o "dono" dos tickets (não há login). */
+function dono() {
+  try {
+    let id = localStorage.getItem("fluxo-dono");
+    if (!id) { id = crypto.randomUUID(); localStorage.setItem("fluxo-dono", id); }
+    return id;
+  } catch {
+    return "";
+  }
+}
+
 async function pedir(metodo, caminho, corpo) {
   let resposta;
   try {
     resposta = await fetch(`/api${caminho}`, {
       method: metodo,
-      headers: corpo === undefined ? {} : { "content-type": "application/json" },
+      headers: { "x-dono": dono(), ...(corpo === undefined ? {} : { "content-type": "application/json" }) },
       body: corpo === undefined ? undefined : JSON.stringify(corpo),
       credentials: "same-origin",
     });

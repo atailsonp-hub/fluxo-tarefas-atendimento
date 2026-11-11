@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { invalido, naoEncontrado, texto } from "./http.js";
 import { transacao } from "./db.js";
+import { garantirIssue, trazerRespostas } from "./github.js";
 
 const STATUS = ["open", "closed"];
 const ROLES = ["user", "agent"];
@@ -11,7 +12,11 @@ const saidaMensagem = (m) => ({ id: m.id, ticketId: m.ticket_id, role: m.role, b
 const saidaTicket = (t) => ({
   id: t.id, title: t.title, status: t.status, createdAt: t.criado_em, updatedAt: t.atualizado_em,
   lastMessage: t.ultima ?? null, lastRole: t.ultima_role ?? null,
+  issueNumber: t.issue_number ?? null, phase: t.fase,
 });
+
+/** Dono do ticket: id anônimo que o navegador envia em x-dono (sem login, é o que separa um usuário do outro). */
+const donoDe = (req) => String(req.headers["x-dono"] ?? "").slice(0, 80);
 
 /** Título automático: primeira linha da mensagem, cortada em ~60 caracteres. */
 const tituloDe = (mensagem) => {
@@ -20,8 +25,8 @@ const tituloDe = (mensagem) => {
 };
 
 export function rotasDeTickets(app, db) {
-  const buscarTicket = (id) => {
-    const t = db.prepare("SELECT * FROM ticket WHERE id = ?").get(id);
+  const buscarTicket = (id, dono) => {
+    const t = db.prepare("SELECT * FROM ticket WHERE id = ? AND owner = ?").get(id, dono);
     if (!t) throw naoEncontrado("Ticket");
     return t;
   };
@@ -44,29 +49,35 @@ export function rotasDeTickets(app, db) {
     return corpo.role;
   };
 
-  app.get("/api/tickets", () => ({
-    tickets: db.prepare("SELECT id FROM ticket ORDER BY atualizado_em DESC, rowid DESC").all().map((t) => saidaTicket(resumo(t.id))),
+  app.get("/api/tickets", ({ req }) => ({
+    tickets: db.prepare("SELECT id FROM ticket WHERE owner = ? ORDER BY atualizado_em DESC, rowid DESC").all(donoDe(req)).map((t) => saidaTicket(resumo(t.id))),
   }));
 
   // Abrir ticket = criar a conversa já com a primeira mensagem do usuário.
-  app.post("/api/tickets", ({ corpo }) => transacao(db, () => {
-    const mensagem = texto(corpo, "message", { max: 4000 });
-    const title = texto(corpo, "title", { max: 120, opcional: true }) ?? tituloDe(mensagem);
-    const agora = new Date().toISOString();
-    const id = randomUUID();
-    db.prepare("INSERT INTO ticket (id, title, status, criado_em, atualizado_em) VALUES (?, ?, 'open', ?, ?)").run(id, title, agora, agora);
-    const primeira = gravarMensagem(id, "user", mensagem);
-    return { ticket: saidaTicket(resumo(id)), messages: [saidaMensagem(primeira)] };
-  }));
+  app.post("/api/tickets", async ({ req, corpo }) => {
+    const criado = transacao(db, () => {
+      const mensagem = texto(corpo, "message", { max: 4000 });
+      const title = texto(corpo, "title", { max: 120, opcional: true }) ?? tituloDe(mensagem);
+      const agora = new Date().toISOString();
+      const id = randomUUID();
+      db.prepare("INSERT INTO ticket (id, title, status, criado_em, atualizado_em, owner) VALUES (?, ?, 'open', ?, ?, ?)").run(id, title, agora, agora, donoDe(req));
+      const primeira = gravarMensagem(id, "user", mensagem);
+      return { id, mensagem, primeira };
+    });
+    // A issue nasce fora da transação: falha do GitHub não derruba o ticket.
+    await garantirIssue(db, db.prepare("SELECT * FROM ticket WHERE id = ?").get(criado.id), criado.mensagem);
+    return { ticket: saidaTicket(resumo(criado.id)), messages: [saidaMensagem(criado.primeira)] };
+  });
 
-  app.get("/api/tickets/:id", ({ params }) => {
-    const ticket = buscarTicket(params.id);
+  app.get("/api/tickets/:id", async ({ req, params }) => {
+    const ticket = buscarTicket(params.id, donoDe(req));
+    await trazerRespostas(db, ticket); // respostas do N1 publicadas na issue
     const messages = db.prepare("SELECT * FROM ticket_message WHERE ticket_id = ? ORDER BY criado_em, rowid").all(ticket.id).map(saidaMensagem);
     return { ticket: saidaTicket(resumo(ticket.id)), messages };
   });
 
-  app.post("/api/tickets/:id/messages", ({ params, corpo }) => transacao(db, () => {
-    const ticket = buscarTicket(params.id);
+  app.post("/api/tickets/:id/messages", ({ req, params, corpo }) => transacao(db, () => {
+    const ticket = buscarTicket(params.id, donoDe(req));
     const body = texto(corpo, "body", { max: 4000 });
     const role = papel(corpo);
     // Responder reabre um ticket fechado: a conversa continua de onde parou.
@@ -75,8 +86,8 @@ export function rotasDeTickets(app, db) {
     return { message: saidaMensagem(m), ticket: saidaTicket(resumo(ticket.id)) };
   }));
 
-  app.patch("/api/tickets/:id", ({ params, corpo }) => {
-    const ticket = buscarTicket(params.id);
+  app.patch("/api/tickets/:id", ({ req, params, corpo }) => {
+    const ticket = buscarTicket(params.id, donoDe(req));
     const title = texto(corpo, "title", { max: 120, opcional: true }) ?? ticket.title;
     let status = ticket.status;
     if (corpo.status !== undefined) {
@@ -87,8 +98,8 @@ export function rotasDeTickets(app, db) {
     return { ticket: saidaTicket(resumo(ticket.id)) };
   });
 
-  app.delete("/api/tickets/:id", ({ params }) => {
-    const ticket = buscarTicket(params.id);
+  app.delete("/api/tickets/:id", ({ req, params }) => {
+    const ticket = buscarTicket(params.id, donoDe(req));
     db.prepare("DELETE FROM ticket WHERE id = ?").run(ticket.id); // mensagens caem em cascata
     return { ok: true };
   });
