@@ -18,7 +18,8 @@ export function montarInstrucoes({ issue, requestId, resultPath, triagem }) {
   return [
     `requestId: ${requestId}`,
     `resultPath: ${resultPath}`,
-    "Grave o relatório JSON do contrato do coordenador em resultPath (no branch do PR) a cada marco e use report_progress.",
+    "Grave o relatório JSON do contrato do coordenador em resultPath (no branch do PR) ao concluir e use report_progress a cada marco.",
+    `Leia docs/automacao-atendimento/COMUNICACAO.md. A cada marco real, mantenha na descrição do PR UM bloco native-agents-progress completo (issueNumber: ${issue.number}, requestId acima, todos os marcos anteriores): é ele que chega ao cliente, em poucos minutos, enquanto você trabalha.`,
     "Em code, inclua review { verdict: ok|ajustar, text } feito pelo Revisor sobre o diff atual.",
     "Antes de agir, consulte docs/knowledge/ (README.md explica o formato). No fim, invoque o agente conhecimento para registrar a issue (e o PR, se houver código) em docs/knowledge/, no mesmo PR.",
     "No PR NÃO use palavras de fechamento (Fixes, Closes, Resolves): escreva Refs #número. Quem fecha a issue é o controlador, depois de integrar.",
@@ -84,6 +85,27 @@ const SO_CONHECIMENTO = [/^docs\/knowledge\/[\w.-]+\.md$/, /^automacao\/resultad
 async function soConhecimento(ctl, repo, numeroPr) {
   const arquivos = await ctl("GET", `/repos/${repo}/pulls/${numeroPr}/files?per_page=100`);
   return arquivos.length > 0 && arquivos.length < 100 && arquivos.every((f) => f.status !== "removed" && SO_CONHECIMENTO.some((re) => re.test(f.filename)));
+}
+
+/**
+ * Marcos de progresso: o coordenador mantém na descrição do PR um bloco ```native-agents-progress {JSON}``` (via report_progress).
+ * É dado, não instrução: só vale com o requestId e a issue desta solicitação; itens malformados são descartados.
+ */
+export function lerProgresso(corpoDoPr, requestId, numeroDaIssue) {
+  const m = /```native-agents-progress\s*\n([\s\S]*?)\n```/.exec(corpoDoPr ?? "");
+  if (!m) return [];
+  let p;
+  try { p = JSON.parse(m[1]); } catch { return []; }
+  if (!p || p.requestId !== requestId || p.issueNumber !== numeroDaIssue || !Array.isArray(p.updates)) return [];
+  return p.updates.slice(0, 100).filter((u) => u && typeof u.id === "string" && typeof u.agent === "string"
+    && typeof u.internalText === "string" && typeof u.publicText === "string");
+}
+
+/** PR do Copilot desta issue ainda não registrado no estado (a varredura não recebe o evento do PR). */
+async function acharPrDaIssue(ctl, repo, numero) {
+  const abertos = await ctl("GET", `/repos/${repo}/pulls?state=open&per_page=100`);
+  return abertos.find((p) => /copilot/i.test(p.user?.login ?? "") && p.head?.repo?.full_name === repo && p.base?.ref === "main"
+    && new RegExp(`#${numero}(?!\\d)`).test(p.body ?? "")) ?? null;
 }
 
 /** Build do commit atual: "verde", "vermelho" ou "aguardando" (ainda não rodou ou em andamento). */
@@ -154,6 +176,12 @@ export async function main(env, deps = {}) {
 
   // Retomada (issue ou workflow_dispatch sem PR no evento): o PR desta issue já está no estado.
   if (!pr && estado.pr) pr = await ctl("GET", `/repos/${repo}/pulls/${estado.pr}`);
+  // A varredura periódica não recebe o evento do PR: acha o PR do Copilot desta issue e segue o mesmo caminho.
+  if (!pr && !estado.pr && ["atribuido", "trabalhando"].includes(estado.fase)) pr = await acharPrDaIssue(ctl, repo, numero);
+  // A varredura também retoma issues paradas em "novo", mas só depois de 15 min: antes disso o evento da própria issue cuida.
+  if (env.GITHUB_EVENT_NAME === "schedule" && !pr && estado.fase === "novo" && Date.now() - Date.parse(issue.created_at ?? 0) < 15 * 60_000) {
+    return console.log(`Issue #${numero} é recente: o evento dela ainda cuida.`);
+  }
 
   // Evento de PR nunca atribui: só lê relatório de PR do Copilot, deste repositório, depois da atribuição.
   if (pr) {
@@ -230,6 +258,12 @@ export async function main(env, deps = {}) {
     if (seco) console.log("[dry-run] trocaria Fixes/Closes por Refs no corpo do PR");
     else await ctl("PATCH", `/repos/${repo}/pulls/${pr.number}`, { body: corpoSeguro });
   }
+
+  // Progresso incremental: publica na issue cada marco novo do bloco da descrição do PR (ID estável, sem repetir).
+  // O backend do app importa os textos públicos, então o cliente acompanha com o chat aberto.
+  const antes = estado.mensagens.length;
+  for (const u of lerProgresso(pr.body, estado.requestId, numero)) await publicar(u);
+  if (estado.mensagens.length !== antes) await salvar();
 
   // Entrega: resposta curta do N1 e fechamento da issue, só depois do merge na main. Idempotente: retoma de onde parou.
   const entregar = async (relatorio) => {
@@ -348,12 +382,33 @@ export async function main(env, deps = {}) {
   return entregar(relatorio);
 }
 
+/**
+ * Varredura periódica (schedule, a cada 5 min): reconcilia todas as issues `origin:app` abertas, uma de cada vez.
+ * Cobre evento perdido ou atrasado (progresso do PR, build, merge, retomada). Falha em uma issue não para as outras.
+ */
+export async function varrer(env, deps = {}) {
+  const { GITHUB_REPOSITORY: repo, GITHUB_TOKEN: controle } = env;
+  if (!repo || !controle) throw new Error("Faltam GITHUB_REPOSITORY e GITHUB_TOKEN.");
+  const abertas = await gh(controle, "GET", `/repos/${repo}/issues?labels=origin:app&state=open&per_page=100`);
+  let falhas = 0;
+  for (const i of abertas.filter((x) => !x.pull_request)) {
+    try {
+      await main({ ...env, ISSUE_NUMBER: String(i.number), PR_NUMBER: "" }, deps);
+    } catch (e) {
+      falhas++;
+      console.error(`Issue #${i.number}: ${e.message}`);
+    }
+  }
+  if (falhas) throw new Error(`${falhas} issue(s) com erro na varredura.`);
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (process.argv.includes("--exemplo")) {
     // Montagem da atribuição com dados fictícios, sem rede e sem token.
     const issue = { title: "Quero mudar a cor do cartão", body: "Pedido fictício de exemplo." };
     console.log(JSON.stringify(montarAtribuicao({ repo: "dono/repositorio", issue, requestId: "req-1-exemplo", resultPath: resultadoDe("req-1-exemplo") }), null, 2));
   } else {
-    main(process.env).catch((e) => { console.error(`Erro: ${e.message}`); process.exit(1); });
+    const varredura = process.env.GITHUB_EVENT_NAME === "schedule" && !process.env.ISSUE_NUMBER;
+    (varredura ? varrer(process.env) : main(process.env)).catch((e) => { console.error(`Erro: ${e.message}`); process.exit(1); });
   }
 }

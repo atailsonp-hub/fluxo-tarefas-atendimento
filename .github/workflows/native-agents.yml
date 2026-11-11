@@ -13,6 +13,8 @@ on:
   workflow_run:
     workflows: [build]
     types: [completed]
+  schedule:
+    - cron: "*/5 * * * *" # varredura: reconcilia issues abertas (o GitHub pode atrasar alguns minutos)
   workflow_dispatch:
     inputs:
       issue_number:
