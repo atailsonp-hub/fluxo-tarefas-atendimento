@@ -6,6 +6,8 @@ name: native-agents
 on:
   issues:
     types: [opened, labeled, reopened]
+  issue_comment:
+    types: [created] # resposta do cliente a um esclarecimento (o controlador ignora o resto)
   pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review, closed]
   workflow_run:
@@ -31,16 +33,24 @@ concurrency:
 
 jobs:
   controlar:
-    if: github.event_name != 'issues' || contains(github.event.issue.labels.*.name, 'origin:app')
+    if: (github.event_name != 'issues' && github.event_name != 'issue_comment') || (contains(github.event.issue.labels.*.name, 'origin:app') && !github.event.issue.pull_request && (github.event_name != 'issue_comment' || startsWith(github.event.comment.body, '<!-- cliente-msg:')))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
+      # Triagem do N1/coordenador pelo Copilot CLI (só em modo real e só em eventos de issue).
+      - name: Instalar Copilot CLI
+        if: vars.AGENT_DRY_RUN == 'false' && github.event_name != 'pull_request_target' && github.event_name != 'workflow_run'
+        run: npm install --global @github/copilot@1.0.109
       - run: node automacao/controlador.mjs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COPILOT_AGENT_TOKEN: ${{ secrets.COPILOT_AGENT_TOKEN }}
+          # Token do CLI: PAT fino com Account > Copilot Requests (Read-only) e licença Copilot ativa.
+          # Token sem essa permissão: a triagem falha e nada é atribuído (a issue fica em "novo" para retomar). AGENT_TRIAGE=false desliga a triagem.
+          COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN || secrets.COPILOT_AGENT_TOKEN }}
+          AGENT_TRIAGE: ${{ vars.AGENT_TRIAGE || 'true' }}
           AGENT_RUNTIME: ${{ vars.AGENT_RUNTIME || 'github-native' }}
           AGENT_DRY_RUN: ${{ vars.AGENT_DRY_RUN || 'true' }}
           AUTO_MERGE: ${{ vars.AUTO_MERGE || 'false' }}

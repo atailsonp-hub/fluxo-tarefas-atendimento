@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { invalido, naoEncontrado, texto } from "./http.js";
 import { transacao } from "./db.js";
-import { garantirIssue, trazerRespostas } from "./github.js";
+import { garantirIssue, repassarMensagens, trazerRespostas } from "./github.js";
 
 const STATUS = ["open", "closed"];
 const ROLES = ["user", "agent"];
@@ -71,12 +71,14 @@ export function rotasDeTickets(app, db) {
 
   app.get("/api/tickets/:id", async ({ req, params, url }) => {
     const ticket = buscarTicket(params.id, donoDe(req));
+    await repassarMensagens(db, ticket); // reenvia o que ficou pendente
     await trazerRespostas(db, ticket, { forcar: url.searchParams.get("sync") === "1" }); // respostas do N1 publicadas na issue; sync=1 = botão Atualizar
     const messages = db.prepare("SELECT * FROM ticket_message WHERE ticket_id = ? ORDER BY criado_em, rowid").all(ticket.id).map(saidaMensagem);
     return { ticket: saidaTicket(resumo(ticket.id)), messages };
   });
 
-  app.post("/api/tickets/:id/messages", ({ req, params, corpo }) => transacao(db, () => {
+  app.post("/api/tickets/:id/messages", async ({ req, params, corpo }) => {
+    const resposta = transacao(db, () => {
     const ticket = buscarTicket(params.id, donoDe(req));
     const body = texto(corpo, "body", { max: 4000 });
     const role = papel(corpo);
@@ -84,7 +86,11 @@ export function rotasDeTickets(app, db) {
     if (ticket.status === "closed") db.prepare("UPDATE ticket SET status = 'open' WHERE id = ?").run(ticket.id);
     const m = gravarMensagem(ticket.id, role, body);
     return { message: saidaMensagem(m), ticket: saidaTicket(resumo(ticket.id)) };
-  }));
+    });
+    // A fala do cliente vai para a issue (fora da transação: falha do GitHub não perde a mensagem).
+    await repassarMensagens(db, db.prepare("SELECT * FROM ticket WHERE id = ?").get(params.id));
+    return resposta;
+  });
 
   app.patch("/api/tickets/:id", ({ req, params, corpo }) => {
     const ticket = buscarTicket(params.id, donoDe(req));
