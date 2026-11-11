@@ -75,14 +75,14 @@ function Mensagem({ mensagem }) {
   );
 }
 
-function Conversa({ detalhe, aoMudarStatus, aoExcluir, aoEnviar, enviando, rascunho, aoMudarRascunho }) {
+function Conversa({ detalhe, aoMudarStatus, aoExcluir, aoAtualizar, sincronizando, atualizadoEm, aoEnviar, enviando, rascunho, aoMudarRascunho }) {
   const fim = useRef(null);
   const { ticket, messages } = detalhe;
   const aguardando = aguardandoAgente(detalhe);
 
   useEffect(() => {
     fim.current?.scrollIntoView({ block: "end" });
-  }, [ticket.id, messages.length, aguardando]);
+  }, [ticket.id, messages.length]);
 
   const fechado = ticket.status === "closed";
   return (
@@ -92,29 +92,30 @@ function Conversa({ detalhe, aoMudarStatus, aoExcluir, aoEnviar, enviando, rascu
           <h1 className="chat-titulo" title={ticket.title}>{ticket.title}</h1>
           <span className="selo-status" data-status={ticket.status}>{fechado ? "Fechado" : "Aberto"}</span>
         </div>
-        <Menu
-          rotulo={`Opções do atendimento ${ticket.title}`}
-          itens={[
-            fechado
-              ? { rotulo: "Reabrir atendimento", icone: "atualizar", aoClicar: () => aoMudarStatus("open") }
-              : { rotulo: "Fechar atendimento", icone: "check", aoClicar: () => aoMudarStatus("closed") },
-            { rotulo: "Excluir atendimento", icone: "lixeira", perigo: true, aoClicar: aoExcluir },
-          ]}
-        />
+        <div className="chat-acoes">
+          <Botao variante="fantasma" icone="atualizar" aria-label="Atualizar conversa" title="Buscar novas mensagens agora" disabled={sincronizando} onClick={aoAtualizar}>
+            {sincronizando ? "Atualizando…" : "Atualizar"}
+          </Botao>
+          <Menu
+            rotulo={`Opções do atendimento ${ticket.title}`}
+            itens={[
+              fechado
+                ? { rotulo: "Reabrir atendimento", icone: "atualizar", aoClicar: () => aoMudarStatus("open") }
+                : { rotulo: "Fechar atendimento", icone: "check", aoClicar: () => aoMudarStatus("closed") },
+              { rotulo: "Excluir atendimento", icone: "lixeira", perigo: true, aoClicar: aoExcluir },
+            ]}
+          />
+        </div>
       </header>
 
       <div className="chat-rolagem">
         <div className="chat-fio" role="log" aria-live="polite" aria-label={`Conversa do atendimento ${ticket.title}`}>
           {messages.map((m) => <Mensagem key={m.id} mensagem={m} />)}
-          {aguardando ? (
-            <div className="msg" data-papel="agent" role="status">
-              <span className="msg-avatar" aria-hidden="true"><Icone nome="suporte" tamanho={16} /></span>
-              <div className="msg-corpo">
-                <p className="msg-autor">Atendimento</p>
-                <p className="msg-espera"><span className="pontos" aria-hidden="true"><i /><i /><i /></span>Recebemos sua mensagem. Um agente vai responder aqui.</p>
-              </div>
-            </div>
-          ) : null}
+          {/* Só estado da sincronização, nunca uma "mensagem" do atendimento: respostas aparecem só quando um agente as publica. */}
+          <p className="chat-status" role="status">
+            {aguardando ? "Aguardando resposta do atendimento" : "Conversa sincronizada"}
+            {atualizadoEm ? ` · atualizado às ${atualizadoEm.toLocaleTimeString("pt-BR")}` : ""}
+          </p>
           <div ref={fim} />
         </div>
       </div>
@@ -174,6 +175,8 @@ export function Atendimento({ aoNavegar }) {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState(null);
   const [excluindo, setExcluindo] = useState(false);
+  const [atualizadoEm, setAtualizadoEm] = useState(null); // última vez que a conversa aberta foi relida do servidor
+  const [sincronizando, setSincronizando] = useState(false);
 
   // Refs deixam a consulta periódica enxergar o estado atual sem recriar o intervalo.
   const idRef = useRef(null);
@@ -209,6 +212,7 @@ export function Atendimento({ aoNavegar }) {
           const novo = await api.tickets.detalhe(id);
           if (vivo && idRef.current === id && versao === versaoRef.current) {
             setDetalhe((atual) => (mesmaConversa(atual, novo) ? atual : novo));
+            setAtualizadoEm(new Date());
           }
         }
         if (primeira) setErro(null);
@@ -228,7 +232,7 @@ export function Atendimento({ aoNavegar }) {
     let vivo = true;
     setDetalhe(null);
     api.tickets.detalhe(ticketId)
-      .then((d) => { if (vivo) { setDetalhe(d); setErro(null); } })
+      .then((d) => { if (vivo) { setDetalhe(d); setAtualizadoEm(new Date()); setErro(null); } })
       .catch((e) => { if (vivo) setErro(e.message); });
     return () => { vivo = false; };
   }, [ticketId]);
@@ -275,6 +279,22 @@ export function Atendimento({ aoNavegar }) {
       await atualizarLista();
     });
     setEnviando(false);
+  };
+
+  // Botão Atualizar: pede ao servidor para reler a issue agora (sem esperar o intervalo) e traz o que o N1 já publicou.
+  const atualizarAgora = async () => {
+    const id = idRef.current;
+    if (!id || sincronizando) return;
+    setSincronizando(true);
+    await executar(async () => {
+      const novo = await api.tickets.detalhe(id, true);
+      if (idRef.current === id) {
+        setDetalhe((atual) => (mesmaConversa(atual, novo) ? atual : novo));
+        setAtualizadoEm(new Date());
+      }
+      await atualizarLista();
+    });
+    setSincronizando(false);
   };
 
   const mudarStatus = (status) => executar(async () => {
@@ -354,6 +374,9 @@ export function Atendimento({ aoNavegar }) {
             detalhe={detalhe}
             aoMudarStatus={mudarStatus}
             aoExcluir={() => setExcluindo(true)}
+            aoAtualizar={atualizarAgora}
+            sincronizando={sincronizando}
+            atualizadoEm={atualizadoEm}
             aoEnviar={enviar}
             enviando={enviando}
             rascunho={rascunho}

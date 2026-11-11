@@ -64,13 +64,13 @@ export async function garantirIssue(db, ticket, descricao) {
   }
 }
 
-const ultimaLeitura = new Map(); // ticketId -> instante; limita a uma leitura da issue a cada 15 s
+const ultimaLeitura = new Map(); // ticketId -> instante; limita a uma leitura da issue a cada 5 s (forcar ignora o limite)
 
 /** Importa para o ticket os comentários públicos do N1 que ainda não viraram mensagem. */
-export async function trazerRespostas(db, ticket) {
+export async function trazerRespostas(db, ticket, { forcar = false } = {}) {
   const c = config();
   if (c.runtime !== "github-native" || c.seco || !ticket.issue_number || !c.repo || !c.token) return;
-  if (Date.now() - (ultimaLeitura.get(ticket.id) ?? 0) < 15_000) return;
+  if (!forcar && Date.now() - (ultimaLeitura.get(ticket.id) ?? 0) < 5_000) return;
   ultimaLeitura.set(ticket.id, Date.now());
   try {
     const comentarios = await gh(c, "GET", `/issues/${ticket.issue_number}/comments?per_page=100`);

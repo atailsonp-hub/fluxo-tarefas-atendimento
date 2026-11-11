@@ -69,9 +69,9 @@ export function rotasDeTickets(app, db) {
     return { ticket: saidaTicket(resumo(criado.id)), messages: [saidaMensagem(criado.primeira)] };
   });
 
-  app.get("/api/tickets/:id", async ({ req, params }) => {
+  app.get("/api/tickets/:id", async ({ req, params, url }) => {
     const ticket = buscarTicket(params.id, donoDe(req));
-    await trazerRespostas(db, ticket); // respostas do N1 publicadas na issue
+    await trazerRespostas(db, ticket, { forcar: url.searchParams.get("sync") === "1" }); // respostas do N1 publicadas na issue; sync=1 = botão Atualizar
     const messages = db.prepare("SELECT * FROM ticket_message WHERE ticket_id = ? ORDER BY criado_em, rowid").all(ticket.id).map(saidaMensagem);
     return { ticket: saidaTicket(resumo(ticket.id)), messages };
   });

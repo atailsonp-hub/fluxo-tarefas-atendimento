@@ -36,7 +36,7 @@ Mantenha o `requestId` e o `resultPath` recebidos. Grave em `resultPath` um rela
 - Em `code`, `review` traz o parecer do Revisor sobre o diff atual (`ok` ou `ajustar`); sem `review` o controlador não integra. Para `outcome` sem código, omita `review`.
 - Cada update tem `id` estável, `agent`, `internalText` e `publicText` redigido pelo N1. A lista `agents` é um registro declarado; a sessão do Copilot mostra as invocações reais.
 
-Cada marco real atualiza o relatório e chama `report_progress`. Ao terminar, abra um PR e entregue o relatório. Não faça merge nem feche a issue, e **não use palavras de fechamento** (Fixes, Closes, Resolves) no PR: escreva `Refs #número`; o controlador fecha a issue depois de integrar e responder.
+Cada marco real atualiza o relatório e chama `report_progress` **assim que acontece**, e não só no fim: o cliente acompanha a conversa aberta no app, e cada `update` com `publicText` do N1 aparece lá. Publique um update por marco com conteúdo real (pedido entendido, pergunta ao cliente, causa encontrada, mudança feita), nunca uma confirmação genérica de recebimento. Ao terminar, abra um PR e entregue o relatório. Não faça merge nem feche a issue, e **não use palavras de fechamento** (Fixes, Closes, Resolves) no PR: escreva `Refs #número`; o controlador fecha a issue depois de integrar e responder.
 
 ## Correção pedida pelo controlador
 

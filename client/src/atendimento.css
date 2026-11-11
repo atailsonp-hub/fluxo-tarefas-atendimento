@@ -104,12 +104,8 @@
 .msg-hora { font-size: 12px; color: var(--secundario); opacity: 0; transition: opacity 160ms ease-out; font-variant-numeric: tabular-nums; }
 .msg:hover .msg-hora, .msg:focus-within .msg-hora { opacity: 1; }
 
-.msg-espera { display: flex; align-items: center; gap: var(--e2); color: var(--secundario); }
-.pontos { display: inline-flex; gap: 3px; }
-.pontos i { width: 6px; height: 6px; border-radius: var(--r-cheio); background: var(--secundario); animation: pulsar 1.2s ease-in-out infinite; }
-.pontos i:nth-child(2) { animation-delay: .15s; }
-.pontos i:nth-child(3) { animation-delay: .3s; }
-@keyframes pulsar { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+.chat-acoes { display: flex; align-items: center; gap: var(--e1); }
+.chat-status { text-align: center; font-size: 12px; color: var(--secundario); font-variant-numeric: tabular-nums; }
 
 /* ---------- campo de envio ---------- */
 
