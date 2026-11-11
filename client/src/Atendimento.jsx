@@ -9,11 +9,6 @@ import { Icone } from "./componentes/Icone.jsx";
 import { Menu } from "./componentes/Menu.jsx";
 
 const INTERVALO_MS = 4000;
-const SUGESTOES = [
-  "Não consigo mover um cartão entre listas",
-  "Encontrei um erro no sistema",
-  "Tenho uma dúvida sobre como usar os quadros",
-];
 
 const hora = (iso) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
@@ -98,18 +93,18 @@ function Conversa({ detalhe, aoMudarStatus, aoExcluir, aoEnviar, enviando, rascu
           <span className="selo-status" data-status={ticket.status}>{fechado ? "Fechado" : "Aberto"}</span>
         </div>
         <Menu
-          rotulo={`Opções do ticket ${ticket.title}`}
+          rotulo={`Opções do atendimento ${ticket.title}`}
           itens={[
             fechado
-              ? { rotulo: "Reabrir ticket", icone: "atualizar", aoClicar: () => aoMudarStatus("open") }
-              : { rotulo: "Fechar ticket", icone: "check", aoClicar: () => aoMudarStatus("closed") },
-            { rotulo: "Excluir ticket", icone: "lixeira", perigo: true, aoClicar: aoExcluir },
+              ? { rotulo: "Reabrir atendimento", icone: "atualizar", aoClicar: () => aoMudarStatus("open") }
+              : { rotulo: "Fechar atendimento", icone: "check", aoClicar: () => aoMudarStatus("closed") },
+            { rotulo: "Excluir atendimento", icone: "lixeira", perigo: true, aoClicar: aoExcluir },
           ]}
         />
       </header>
 
       <div className="chat-rolagem">
-        <div className="chat-fio" role="log" aria-live="polite" aria-label={`Conversa do ticket ${ticket.title}`}>
+        <div className="chat-fio" role="log" aria-live="polite" aria-label={`Conversa do atendimento ${ticket.title}`}>
           {messages.map((m) => <Mensagem key={m.id} mensagem={m} />)}
           {aguardando ? (
             <div className="msg" data-papel="agent" role="status">
@@ -127,8 +122,8 @@ function Conversa({ detalhe, aoMudarStatus, aoExcluir, aoEnviar, enviando, rascu
       <div className="chat-base">
         {fechado ? (
           <div className="chat-fechado">
-            <span>Este ticket está fechado.</span>
-            <Botao icone="atualizar" onClick={() => aoMudarStatus("open")}>Reabrir ticket</Botao>
+            <span>Este atendimento está fechado.</span>
+            <Botao icone="atualizar" onClick={() => aoMudarStatus("open")}>Reabrir atendimento</Botao>
           </div>
         ) : (
           <Composer aoEnviar={aoEnviar} enviando={enviando} valor={rascunho} aoMudar={aoMudarRascunho} autoFocus={ticket.id} />
@@ -138,36 +133,36 @@ function Conversa({ detalhe, aoMudarStatus, aoExcluir, aoEnviar, enviando, rascu
   );
 }
 
-/** Novo ticket: título (resumo) + descrição (detalhes). A descrição vira a primeira mensagem da conversa. */
+/** Novo atendimento: título (resumo) + descrição (detalhes). A descrição vira a primeira mensagem da conversa. */
 function ConversaNova({ aoAbrir, enviando }) {
   const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
   const pronto = titulo.trim() && descricao.trim();
 
   return (
-    <div className="chat-novo">
-      <span className="chat-novo-icone" aria-hidden="true"><Icone nome="suporte" tamanho={26} /></span>
-      <h1 className="chat-novo-titulo">Como podemos ajudar?</h1>
-      <p className="chat-novo-texto">Dê um título e descreva o problema. Abriremos um ticket e a conversa fica salva aqui, com cada resposta.</p>
-      <form
-        className="novo-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (pronto && !enviando) aoAbrir(titulo.trim(), descricao.trim());
-        }}
-      >
-        <Campo rotulo="Título" name="title" value={titulo} onChange={(e) => setTitulo(e.target.value)} maxLength={120} required autoFocus placeholder="Resuma o problema em uma frase" />
-        <Campo rotulo="Descrição" name="description" value={descricao} onChange={(e) => setDescricao(e.target.value)} multilinha rows={6} maxLength={4000} required placeholder="O que aconteceu? O que você esperava? Passos para repetir, mensagens de erro…" />
-        <div className="novo-form-acoes">
-          <Botao variante="primario" type="submit" icone="enviar" disabled={!pronto || enviando}>Abrir ticket</Botao>
-        </div>
-      </form>
-      <ul className="sugestoes" aria-label="Sugestões de título">
-        {SUGESTOES.map((s) => (
-          <li key={s}><button type="button" className="sugestao" onClick={() => setTitulo(s)}>{s}</button></li>
-        ))}
-      </ul>
-    </div>
+    <>
+      <header className="chat-topo">
+        <p className="chat-topo-nome">Atendimento</p>
+      </header>
+      <div className="chat-novo">
+        <span className="chat-novo-icone" aria-hidden="true"><Icone nome="suporte" tamanho={24} /></span>
+        <h1 className="chat-novo-titulo">Como podemos ajudar?</h1>
+        <p className="chat-novo-texto">Dê um título ao assunto e descreva o que está acontecendo. Cada atendimento é uma conversa: você acompanha as respostas aqui mesmo.</p>
+        <form
+          className="novo-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (pronto && !enviando) aoAbrir(titulo.trim(), descricao.trim());
+          }}
+        >
+          <Campo rotulo="Título" name="title" value={titulo} onChange={(e) => setTitulo(e.target.value)} maxLength={120} required autoFocus placeholder="Resumo do problema em uma frase" />
+          <Campo rotulo="Descrição" name="description" value={descricao} onChange={(e) => setDescricao(e.target.value)} multilinha rows={8} maxLength={4000} required placeholder="O que você tentou fazer, o que aconteceu e o que esperava que acontecesse" />
+          <div className="novo-form-acoes">
+            <Botao variante="primario" type="submit" disabled={!pronto || enviando}>Abrir atendimento</Botao>
+          </div>
+        </form>
+      </div>
+    </>
   );
 }
 
@@ -282,16 +277,6 @@ export function Atendimento({ aoNavegar }) {
     setEnviando(false);
   };
 
-  // Atualização manual: recarrega a lista e a conversa aberta (a automática roda a cada 4 s).
-  const atualizarAgora = () => executar(async () => {
-    versaoRef.current++;
-    await atualizarLista();
-    if (idRef.current) {
-      const novo = await api.tickets.detalhe(idRef.current);
-      setDetalhe((atual) => (mesmaConversa(atual, novo) ? atual : novo));
-    }
-  });
-
   const mudarStatus = (status) => executar(async () => {
     versaoRef.current++;
     const r = await api.tickets.editar(ticketId, { status });
@@ -313,15 +298,14 @@ export function Atendimento({ aoNavegar }) {
   const grupos = tickets ? agruparPorData(tickets) : [];
 
   return (
-    <div className="app">
-      <BarraLateral tela="atendimento" aoNavegar={aoNavegar}>
-        <div className="lateral-novo">
-          <Botao variante="primario" icone="mais" className="botao-bloco" onClick={() => escolher(null)}>Novo ticket</Botao>
-          <Botao icone="atualizar" aria-label="Atualizar tickets" title="Atualizar tickets" onClick={() => void atualizarAgora()} />
-        </div>
+    <div className="app app-atend">
+      <BarraLateral tela="atendimento" aoNavegar={aoNavegar} />
+
+      <aside className="atend-lista" aria-label="Atendimentos">
+        <Botao icone="mais" className="botao-bloco" onClick={() => escolher(null)}>Novo atendimento</Botao>
 
         {tickets === null ? (
-          <p className="lateral-vazio">Carregando tickets…</p>
+          <p className="lateral-vazio">Carregando atendimentos…</p>
         ) : grupos.length ? (
           <div className="tickets-grupos">
             {grupos.map((g) => (
@@ -336,6 +320,7 @@ export function Atendimento({ aoNavegar }) {
                         data-ativo={t.id === ticketId ? "" : undefined}
                         data-status={t.status}
                         aria-current={t.id === ticketId ? "page" : undefined}
+                        title={t.title}
                         onClick={() => escolher(t.id)}
                       >
                         <span className="ticket-item-titulo">{t.title}</span>
@@ -348,9 +333,9 @@ export function Atendimento({ aoNavegar }) {
             ))}
           </div>
         ) : (
-          <p className="lateral-vazio">Nenhum ticket ainda. Abra o primeiro para começar.</p>
+          <p className="lateral-vazio">Nenhum atendimento ainda. Abra o primeiro para começar.</p>
         )}
-      </BarraLateral>
+      </aside>
 
       <main className="canvas chat">
         {erro ? (
@@ -380,9 +365,9 @@ export function Atendimento({ aoNavegar }) {
       {excluindo && detalhe ? (
         <Confirmar
           aberto
-          titulo="Excluir ticket"
+          titulo="Excluir atendimento"
           descricao={`Excluir "${detalhe.ticket.title}" apaga toda a conversa. Não dá para desfazer.`}
-          rotuloConfirmar="Excluir ticket"
+          rotuloConfirmar="Excluir atendimento"
           aoConfirmar={() => void excluir()}
           aoFechar={() => setExcluindo(false)}
         />

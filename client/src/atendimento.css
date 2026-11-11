@@ -8,8 +8,14 @@
 
 /* ---------- lateral: lista de tickets ---------- */
 
-.lateral-novo { display: flex; gap: var(--e2); }
-.lateral-novo .botao-bloco { flex: 1; width: auto; }
+.atend-lista {
+  background: var(--oceano-fraco);
+  border-bottom: 1px solid var(--borda);
+  padding: var(--e3);
+  display: flex; flex-direction: column; gap: var(--e4);
+  min-width: 0;
+}
+.atend-lista > .botao { background: var(--superficie); }
 
 .tickets-grupos { display: flex; flex-direction: column; gap: var(--e4); min-height: 0; overflow-y: auto; }
 .tickets-grupo-titulo { padding: 0 var(--e2) var(--e1); }
@@ -25,8 +31,8 @@
   cursor: pointer;
   transition: background-color 160ms ease-out;
 }
-.ticket-item:hover { background: var(--fundo); }
-.ticket-item[data-ativo] { background: var(--oceano-fraco); color: var(--noite); font-weight: 600; }
+.ticket-item:hover { background: rgb(255 255 255 / 60%); }
+.ticket-item[data-ativo] { background: var(--superficie); color: var(--noite); font-weight: 600; }
 .ticket-item[data-status="closed"] { color: var(--secundario); }
 .ticket-item-titulo { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ticket-item-check { color: var(--ok); }
@@ -58,6 +64,8 @@
 }
 .chat-titulo-bloco { display: flex; align-items: center; gap: var(--e3); min-width: 0; }
 .chat-titulo { font-size: var(--titulo-3); color: var(--noite); letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.chat-topo-nome { font-size: var(--corpo); font-weight: 600; color: var(--noite); }
 
 .selo-status {
   flex: none;
@@ -138,40 +146,29 @@
   color: var(--secundario);
 }
 
-/* ---------- conversa nova (estado vazio) ---------- */
+/* ---------- novo atendimento ---------- */
 
 .chat-novo {
-  flex: 1; width: min(768px, 100%); margin: 0 auto;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--e3);
+  flex: 1; width: min(580px, 100%); margin: 0 auto;
+  display: flex; flex-direction: column; align-items: center; gap: var(--e3);
   padding: var(--e8) var(--e4); text-align: center;
 }
 .chat-novo-icone {
-  width: 56px; height: 56px; border-radius: var(--r-cheio);
-  display: grid; place-items: center; background: var(--oceano); color: #fff;
+  width: 52px; height: 52px; border-radius: var(--r-cheio);
+  display: grid; place-items: center; background: var(--oceano-fraco); color: var(--oceano);
 }
 .chat-novo-titulo { font-size: var(--titulo-1); color: var(--noite); letter-spacing: -0.02em; text-wrap: balance; }
-.chat-novo-texto { color: var(--secundario); max-width: 52ch; text-wrap: pretty; }
-.novo-form {
-  width: 100%; margin-top: var(--e3); text-align: left;
-  display: grid; gap: var(--e4);
-  background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--r3);
-  padding: var(--e6); box-shadow: var(--sombra-2);
-}
+.chat-novo-texto { color: var(--secundario); max-width: 34ch; text-wrap: pretty; }
+.novo-form { width: 100%; margin-top: var(--e4); text-align: left; display: grid; gap: var(--e4); }
 .novo-form-acoes { display: flex; justify-content: flex-end; }
-.sugestoes { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--e2); }
-.sugestao {
-  background: var(--superficie); border: 1px solid var(--borda-forte); border-radius: var(--r-cheio);
-  padding: var(--e2) var(--e4); color: var(--texto); cursor: pointer;
-  transition: background-color 160ms ease-out, border-color 160ms ease-out;
-}
-.sugestao:hover { background: var(--oceano-fraco); border-color: var(--oceano); }
 
 /* ---------- responsivo ---------- */
 
 @media (min-width: 768px) {
-  .chat { height: 100vh; }
-  .chat-novo { padding-bottom: 15vh; }
-  .tickets-grupos { flex: 1; }
+  .chat { height: 100vh; overflow: hidden; }
+  .app-atend { grid-template-columns: 236px 266px 1fr; }
+  .atend-lista { position: sticky; top: 0; height: 100vh; overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--borda); }
+  .chat-novo { overflow-y: auto; }
 }
 
 @media (max-width: 767px) {

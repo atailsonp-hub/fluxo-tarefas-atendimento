@@ -8,9 +8,9 @@ const TELAS = [
 
 /**
  * Lateral do sistema: marca, menu de telas e o conteúdo da tela atual.
- * Sem `children`, mostra a lista de quadros; a tela de Atendimento passa a sua lista de tickets.
+ * Na tela de Quadros mostra a lista de quadros; a de Atendimento tem a sua própria coluna de conversas.
  */
-export function BarraLateral({ tela = "quadros", aoNavegar, children, quadros, quadroId, aoSelecionar, aoNovoQuadro, aoRenomear, aoExcluir }) {
+export function BarraLateral({ tela = "quadros", aoNavegar, quadros, quadroId, aoSelecionar, aoNovoQuadro, aoRenomear, aoExcluir }) {
   return (
     <aside className="lateral" aria-label={tela === "atendimento" ? "Atendimento" : "Quadros"}>
       <a className="marca" href="/" aria-label="Fluxo, voltar ao início" style={{ textDecoration: "none" }}>
@@ -39,7 +39,7 @@ export function BarraLateral({ tela = "quadros", aoNavegar, children, quadros, q
         ))}
       </nav>
 
-      {children ?? (
+      {tela === "quadros" ? (
         <>
           <div className="lateral-topo">
             <h2 className="lateral-titulo">Quadros</h2>
@@ -73,7 +73,7 @@ export function BarraLateral({ tela = "quadros", aoNavegar, children, quadros, q
             <p className="lateral-vazio">Nenhum quadro ainda. Crie o primeiro para começar.</p>
           )}
         </>
-      )}
+      ) : null}
     </aside>
   );
 }
